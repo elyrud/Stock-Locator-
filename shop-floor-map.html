@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#753bbd">
+<title>Shop floor map | BEC TECH Stock Locator</title>
+<link rel="stylesheet" href="theme.css"></head>
+<body><main class="shell">
+<header class="top"><div class="brand"><a class="university-logo" href="https://www.leedsbeckett.ac.uk/" aria-label="Leeds Beckett University home"><img src="assets/leeds-beckett-university-logo.svg" alt="Leeds Beckett University" width="225" height="95"></a><div><h1>BEC TECH Stock Locator</h1><p>Engineering and Computing Components</p></div></div><span class="pill">Staff stock portal</span></header><nav class="site-nav" aria-label="Main navigation"><a href="index.html">Find stock</a><a href="product-inventory.html">Product inventory</a><a href="shop-floor-map.html" aria-current="page">Shop floor map</a></nav>
+<section class="intro"><span class="eyebrow">Easy Stock Locator</span><h2>BEC TECH.<br><span>Hardware, components and equipment.</span></h2><p>Find the right product, in the right place.<br>Search your shelves, drawers and storage in seconds.</p></section>
+<section class="stats"><div class="stat"><small>Products listed</small><strong id="productCount">0</strong></div><div class="stat"><small>Known units</small><strong id="unitCount">0</strong><span class="meta" id="quantityCoverage"></span></div><div class="stat"><small>Storage locations</small><strong id="locationCount">0</strong></div></section>
+<section id="shop-map" class="shop-map" aria-labelledby="mapTitle">
+<div id="mapOverview">
+<div class="map-heading"><span class="eyebrow">Explore the helpdesk</span><h2 id="mapTitle" tabindex="-1">Shop floor map</h2><p>Click on a box to explore it's contents</p></div>
+<div class="floor-plan"><img src="assets/shop-floor-plan.png" width="1672" height="941" alt="Shop floor plan showing four stock shelving areas along the left wall and three at the bottom, plus counters, workstations and doors."><div id="mapHotspots"></div></div>
+<p class="map-caption">The numbers identify clickable areas. Use the links below to choose an area on a smaller screen.</p>
+<nav id="shelfLinks" class="shelf-links" aria-label="Shelving areas and counters"></nav>
+</div>
+<div id="shelfView" hidden>
+<a class="back-to-map" href="#shop-map">&larr; Back to shop floor map</a>
+<div class="map-heading"><h2 id="shelfTitle" tabindex="-1"></h2><p id="shelfPosition"></p></div>
+<div id="shelfPhoto" class="shelf-photo"></div>
+<div id="shelfStock" aria-live="polite"></div>
+</div>
+</section>
+</main><footer class="footer"><span>BEC TECH Stock Locator</span><span>Staff tools &middot; Stock stored in this browser</span></footer>
+<div class="modal-backdrop" id="modalBackdrop"><form role="dialog" aria-modal="true" aria-labelledby="modalTitle" class="modal" id="productForm"><h3 id="modalTitle">Add a product</h3><input type="hidden" id="editId"><label class="field"><span>Product name *</span><input id="name" required placeholder="e.g. Arduino Uno R3"></label><label class="field"><span>SKU / product code</span><input id="sku" placeholder="e.g. ARD-001"></label><label class="field"><span>Category</span><input id="category" placeholder="e.g. Microcontrollers"></label><label class="field"><span>Rack / area *</span><input id="area" required placeholder="e.g. Rack 3A"></label><label class="field"><span>Shelf / drawer / bin *</span><input id="shelf" required placeholder="e.g. Shelf B, Drawer 3"></label><label class="field"><span>Quantity</span><input id="quantity" type="number" min="0" step="1" placeholder="Not recorded"><small>Leave blank if the quantity has not been counted.</small></label><label class="field"><span>Status</span><input id="status" placeholder="e.g. In stock"></label><label class="field"><span>Notes</span><input id="notes" placeholder="Additional information from the inventory"></label><div class="modal-actions"><button type="button" class="btn secondary" id="cancelBtn">Cancel</button><button class="btn primary" type="submit">Save product</button></div></form></div><div class="toast" id="toast" role="status"></div>
+<script src="inventory.js"></script><script src="app.js"></script><script src="shop-map.js"></script></body></html>
