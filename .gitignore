@@ -1,0 +1,8 @@
+data/
+.env
+.env.*
+!.env.example
+verification-result.txt
+server-test-result.txt
+debug.log
+

@@ -1,47 +1,46 @@
-const KEY = 'becTechStockLocatorProductsV2';
-const LEGACY_KEY = 'shopStockLocatorProductsV1';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let storageAvailable = true;
-
-function readStoredItems(key) {
-  const value = localStorage.getItem(key);
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return null;
-    return parsed.filter(p => p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim() && p.id != null)
-      .map(p => ({...p, id: String(p.id)}));
-  } catch {
-    return null;
-  }
+let items = [], inventoryVersion = 0, csrfToken = '', saving = false, loaded = false;
+async function api(route, method = 'GET', data) {
+  const response = await fetch(route, {method, headers: data ? {'Content-Type':'application/json','X-CSRF-Token':csrfToken} : {}, body:data ? JSON.stringify(data) : undefined});
+  if (response.status === 401) { location.replace('/login.html'); throw Error('Your session has expired. Please sign in.'); }
+  const result = await response.json();
+  if (!response.ok) throw Object.assign(new Error(result.error || 'Unable to complete the request.'), {status:response.status});
+  return result;
 }
-
-function load() {
-  let loaded = INVENTORY.map(p => ({...p}));
-  try {
-    const saved = readStoredItems(KEY);
-    if (saved !== null) return saved;
-    // Keep existing browser entries alongside the imported inventory.
-    const old = readStoredItems(LEGACY_KEY) || [];
-    loaded = [...loaded, ...old];
-    localStorage.setItem(KEY, JSON.stringify(loaded));
-    return loaded;
-  } catch {
-    storageAvailable = false;
-    return loaded;
-  }
+function syncMessage(message, error = false) {
+  if ($('syncStatus')) { $('syncStatus').textContent = message; $('syncStatus').classList.toggle('sync-error',error); }
 }
-let items = load();
-function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(items));
-    storageAvailable = true;
-  } catch {
-    storageAvailable = false;
-  }
+async function refreshInventory() {
+  if (saving) return;
+  const result = await api('/api/inventory');
+  if (saving || result.version < inventoryVersion) return;
+  items = result.items; inventoryVersion = result.version; loaded = true;
   render();
+  if (typeof showShelfRoute === 'function') showShelfRoute();
+  if ($('addBtn')) $('addBtn').disabled = false;
+  syncMessage('Shared inventory · Changes are saved for all staff.');
 }
+async function save(nextItems) {
+  if (saving || !loaded) return false;
+  saving = true;
+  if ($('saveProductBtn')) $('saveProductBtn').disabled = true;
+  try {
+    const result = await api('/api/inventory','PUT',{version:inventoryVersion,items:nextItems});
+    items = result.items; inventoryVersion = result.version; render();
+    syncMessage('Shared inventory · Changes saved for all staff.');
+    return true;
+  } catch (error) {
+    saving = false;
+    if (error.status === 409) { try { await refreshInventory(); } catch {} }
+    syncMessage(error.message,true); notify(error.message);
+    return false;
+  } finally {
+    saving = false;
+    if ($('saveProductBtn')) $('saveProductBtn').disabled = false;
+  }
+}
+
 function render() {
   const q = ($('search')?.value || '').trim().toLowerCase();
   const filtered = items.filter(p => [p.name,p.sku,p.category,p.area,p.shelf,p.notes,p.status].some(v => String(v || '').toLowerCase().includes(q)));
@@ -56,64 +55,58 @@ function render() {
   $('listTitle').textContent = q ? `Search results (${filtered.length})` : 'All products';
   $('products').innerHTML = filtered.length ? filtered.sort((a,b) => a.name.localeCompare(b.name)).map(p => `<article class="product"><div class="product-icon" aria-hidden="true">&#9638;</div><div class="product-main"><h4>${esc(p.name)}</h4><div class="meta">${esc(p.sku || 'No SKU')} &middot; ${esc(p.category || 'Uncategorised')}</div><div class="location"><span>Stored at</span><b>${esc(p.shelf)}</b><span class="meta">${esc(p.area)}</span></div><div class="qty">Quantity: <strong>${p.quantity == null || p.quantity === '' ? 'Not recorded' : esc(p.quantity)}</strong>${p.status ? ` &middot; ${esc(p.status)}` : ''}</div>${p.notes ? `<p class="inventory-note">${esc(p.notes)}</p>` : ''}<div class="actions"><button class="btn secondary" data-action="edit" data-id="${esc(p.id)}">Edit</button><button class="btn secondary" data-action="delete" data-id="${esc(p.id)}">Delete</button></div></div></article>`).join('') : '<div class="empty"><b>No products found</b><div>Try another search, or add this product.</div></div>';
 }
+
+
 function openModal(p) {
+  if (!loaded) return;
   $('productForm').reset();
   $('editId').value = p?.id || '';
   $('modalTitle').textContent = p ? 'Edit product' : 'Add a product';
   for (const field of ['name','sku','category','area','shelf','notes','status']) $(field).value = p?.[field] || '';
   $('quantity').value = p?.quantity ?? '';
-  $('modalBackdrop').classList.add('open');
-  $('name').focus();
+  $('modalBackdrop').classList.add('open'); $('name').focus();
 }
-function closeModal() {
-  $('modalBackdrop').classList.remove('open');
-  $('addBtn')?.focus();
-}
+function closeModal() { if (saving) return; $('modalBackdrop').classList.remove('open'); $('addBtn')?.focus(); }
+let toastTimer;
 function notify(message) {
-  $('toast').textContent = message;
-  $('toast').style.display = 'block';
-  setTimeout(() => $('toast').style.display = 'none', 3500);
+  $('toast').textContent = message; $('toast').style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').style.display = 'none',5000);
 }
-$('products')?.addEventListener('click', e => {
-  const button = e.target.closest('button[data-action]');
-  if (!button) return;
-  const p = items.find(p => p.id === button.dataset.id);
-  if (!p) return;
-  if (button.dataset.action === 'edit') openModal(p);
-  if (button.dataset.action === 'delete' && confirm(`Delete ${p.name} from your local stock list?`)) {
-    items = items.filter(item => item.id !== p.id);
-    save();
-    notify(storageAvailable ? 'Product deleted' : 'Change could not be saved to this browser');
+$('products')?.addEventListener('click', async event => {
+  const button = event.target.closest('button[data-action]');
+  if (!button || saving) return;
+  const product = items.find(p => p.id === button.dataset.id);
+  if (!product) return;
+  if (button.dataset.action === 'edit') openModal(product);
+  if (button.dataset.action === 'delete' && confirm(`Delete ${product.name} from the shared inventory for all staff?`)) {
+    if (await save(items.filter(p => p.id !== product.id))) notify('Product deleted for all staff.');
   }
 });
-$('search')?.addEventListener('input', render);
+$('search')?.addEventListener('input', () => { if (loaded) render(); });
 if ($('addBtn')) $('addBtn').onclick = () => openModal();
-$('cancelBtn').onclick = closeModal;
-$('modalBackdrop').addEventListener('click', e => { if (e.target === $('modalBackdrop')) closeModal(); });
-$('productForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const id = $('editId').value || 'p' + Date.now();
+if ($('cancelBtn')) $('cancelBtn').onclick = closeModal;
+$('modalBackdrop')?.addEventListener('click', event => { if (event.target === $('modalBackdrop')) closeModal(); });
+$('productForm')?.addEventListener('submit', async event => {
+  event.preventDefault(); if (saving || !loaded) return;
+  const editId = $('editId').value;
+  if (editId && !items.some(p => p.id === editId)) return notify('This product was deleted. Close this form and refresh the list.');
   const quantity = $('quantity').value.trim();
-  const product = {id, quantity: quantity === '' ? null : Math.max(0, Number(quantity))};
+  const product = {id:editId || 'p-' + crypto.randomUUID(),quantity:quantity === '' ? null : Number(quantity)};
   for (const field of ['name','sku','category','area','shelf','notes','status']) product[field] = $(field).value.trim();
-  const index = items.findIndex(p => p.id === id);
-  if (index >= 0) items[index] = product;
-  else items.push(product);
-  save();
-  closeModal();
-  notify(storageAvailable ? (index >= 0 ? 'Product updated' : 'Product added') : 'Change could not be saved to this browser');
+  const next = editId ? items.map(p => p.id === editId ? product : p) : [...items,product];
+  if (await save(next)) { closeModal(); notify(editId ? 'Product updated for all staff.' : 'Product added for all staff.'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('modalBackdrop').classList.contains('open')) closeModal(); });
-render();
-if (!storageAvailable) notify('Browser storage is unavailable. Changes will last only for this visit.');
-
-// Refresh cached pages and other open tabs after inventory changes.
-if (typeof window !== 'undefined') {
-  const refreshInventory = () => {
-    items = load();
-    render();
-    if (typeof showShelfRoute === 'function') showShelfRoute();
-  };
-  window.addEventListener('pageshow', event => { if (event.persisted) refreshInventory(); });
-  window.addEventListener('storage', event => { if (event.key === KEY || event.key === null) refreshInventory(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('modalBackdrop')?.classList.contains('open')) closeModal(); });
+async function startStaffSession() {
+  try {
+    const session = await api('/api/session'); csrfToken = session.csrf;
+    if ($('sessionTools')) {
+      $('sessionTools').innerHTML = `<span>${esc(session.user.name)}</span>${session.user.role === 'admin' ? '<a href="staff.html">Staff accounts</a>' : ''}<button type="button" class="btn secondary" id="signOut">Sign out</button>`;
+      $('signOut').addEventListener('click',async () => { try { await api('/api/auth/logout','POST',{}); location.replace('/login.html'); } catch (error) { notify(error.message); } });
+    }
+    await refreshInventory();
+  } catch (error) {syncMessage('Unable to load the shared inventory. '+error.message,true);}
 }
+startStaffSession();
+window.addEventListener('pageshow',event => { if (event.persisted) startStaffSession(); });
+window.addEventListener('focus',() => { if (loaded && !$('modalBackdrop')?.classList.contains('open')) refreshInventory().catch(error => syncMessage(error.message,true)); });

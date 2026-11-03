@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Staff sign in | BEC TECH Stock Locator</title><link rel="stylesheet" href="theme.css"></head>
+<body class="auth-page"><main class="auth-card">
+<img class="auth-logo" src="assets/leeds-beckett-university-logo.svg" width="225" height="95" alt="Leeds Beckett University">
+<span class="eyebrow">BEC TECH Stock Locator</span><h1 id="authTitle">Staff sign in</h1><p id="authIntro">Sign in with your invited staff account to access the inventory.</p>
+<form id="authForm"><label class="field" id="nameField" hidden><span>Your name</span><input id="authName" autocomplete="name" maxlength="100"></label><label class="field" id="emailField"><span>Email address</span><input id="authEmail" type="email" autocomplete="username" required maxlength="254"></label><label class="field"><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" required maxlength="128"></label><label class="field" id="confirmField" hidden><span>Confirm password</span><input id="authConfirm" type="password" autocomplete="new-password" maxlength="128"></label><p class="meta" id="passwordHelp" hidden>Use at least 12 characters. Each colleague needs their own account.</p><button class="btn primary" id="authSubmit" type="submit" disabled>Sign in</button></form>
+<p id="authMessage" role="status" aria-live="polite"></p><p class="meta" id="authHelp">Need an account or a password reset? Ask your stock locator administrator for a private link.</p>
+</main><script src="login.js"></script></body></html>

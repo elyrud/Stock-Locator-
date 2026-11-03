@@ -49,6 +49,10 @@ function findComponents(description, inventory) {
     .sort((a,b) => b.score - a.score || a.product.name.localeCompare(b.product.name)).slice(0,5);
 }
 function renderComponentSuggestions() {
+  if (!loaded) {
+    $('componentSuggestions').textContent = 'The shared inventory is still loading. Please try again in a moment.';
+    return;
+  }
   const description = $('componentDescription').value.trim();
   const results = findComponents(description, items);
   $('componentSuggestions').innerHTML = !description

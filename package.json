@@ -1,0 +1,7 @@
+{
+  "name": "bec-tech-stock-locator",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {"node": ">=24.0.0"},
+  "scripts": {"start": "node server.cjs", "test": "node --test server.test.cjs"}
+}

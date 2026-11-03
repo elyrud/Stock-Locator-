@@ -1,19 +1,74 @@
 # BEC TECH Stock Locator
 
-A browser-based helpdesk inventory for finding engineering and computing materials and components in the BEC TECH room. Open `index.html` for Find stock, `product-inventory.html` for the full editable inventory, or `shop-floor-map.html` for the interactive map. The navigation links switch between these pages. Serve all pages from the same website address to share browser-saved inventory.
+A staff-only prototype for locating engineering and computing components, with a shared inventory, component suggestions and clickable shelf photographs.
 
-The initial inventory contains 104 entries (C001–C104) imported from `Component_Inventory.pdf`, including categories, rack/shelf/container/drawer locations, status and notes. `inventory.js` contains this starting data; `app.js` handles search and editing.
+## Run locally
 
-Search by component, inventory ID, category, location or notes. Quantities omitted in the PDF remain unrecorded, rather than being treated as zero. The Known units total counts only recorded quantities (initially 106 units across seven entries). Uncertain labels and repeated components with different IDs are preserved as listed in the PDF.
+Use Node.js 24 or later. No package installation is needed.
 
-The separate `describe-component.html` page contains the Describe your component form, accessible from the navigation on every page. `component-finder.js` ranks the current browser inventory using exact keywords and common purpose descriptions (for example distance, temperature/humidity, or building without soldering). It displays up to five possible matches with reasons and storage locations. Unrecognised descriptions show a no-match message. This runs locally without an AI service or API key; it does not verify electrical compatibility. Update `COMPONENT_RULES` to support additional descriptions. Include `component-finder.js` when publishing.
+```powershell
+npm start
+```
 
-Changes are saved in this browser on this device, not shared between users. Existing entries saved by the earlier prototype are retained alongside the imported inventory on first load. Later visits use the saved list, preserving edits and deletions. Keep all four HTML pages, `theme.css`, `inventory.js`, `app.js`, `shop-map.js` and the `assets` directory together when publishing.
+On this Windows computer you can also run the launcher. It uses Node.js if installed, otherwise VS Code's bundled runtime:
 
-The Shop floor map uses `assets/shop-floor-plan.png` with individually clickable shelf sections. Area 1 is split into two side-by-side blocks, 1A (left) and 1B (right), each with its own photo setting. Areas 2–4 continue down the left wall; areas 5–7 run along the bottom from left to right. Each opens a dedicated photo view, with a placeholder until photos are supplied. Equivalent links below the map support mobile and keyboard navigation. Browser Back returns to the previous view, and shelf URLs such as `shop-floor-map.html#shelf-3C` can be bookmarked.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-local.ps1
+```
 
-`shop-map.js` holds the shelf labels, percentage-based map positions, photo paths and optional rack assignments. To add a photo, save it in `assets` and set the corresponding `photo` value to its relative path. Leave `rack` unassigned until its real location is confirmed; assigning an exact inventory area such as `Rack 3A` also displays its stock. Include `shop-map.js` when publishing.
+Open http://localhost:3000/login.html. On the first visit, create your own administrator account with a password of at least 12 characters. There are no default accounts or passwords. Initial setup is restricted to the local computer and closes after the administrator is created.
 
-Counter 2 is also clickable (C2 on the map). Its photo can be set in SHOP_COUNTERS in shop-map.js. Products with Rack / area set to Counter 2 appear in its stock list.
+Use this server instead of the IDE's static preview. A static preview, GitHub Pages or directly opening HTML files does not enforce staff authentication.
 
-Area 1A includes a photo with 85 numbered pins: 1–5 identify the top storage stacks, 6–45 identify the upper drawers, and 46–85 identify the lower drawers. Drawer numbers run top to bottom within each cabinet, then left to right across cabinets. Hover, focus with Tab, or tap a pin to see its label and contents. The photo scrolls horizontally on small screens to keep pins usable. `SHELF_PHOTO_PINS` in `shop-map.js` stores percentage positions and placeholder contents; update each pin's `contents` (or `label`) when confirmed. No contents have been inferred from the photograph.
+Stop the launcher-managed server with `powershell -ExecutionPolicy Bypass -File .\stop-local.ps1`. If started with `npm start`, press Ctrl+C in that terminal.
+
+## Invite colleagues
+
+After signing in, select **Staff accounts**. Enter a colleague's email and create an invitation. Share the private link directly with that colleague; the app does not send email. Links expire after 24 hours and can be used once. Creating another link for the same email invalidates the previous one.
+
+Colleagues choose their own passwords. Administrators can create password reset links and disable accounts. Resetting a password or disabling an account revokes its existing sessions. There is no public registration. Administrator setup should be completed before hosting the app.
+
+Localhost links work only on this computer. Hosting is still needed before remote colleagues can use these links.
+
+## Shared stock
+
+The server seeds the shared database with 104 entries (C001-C104) from `inventory.js`. Blank quantities stay unrecorded; the initial Known units total is 106 across seven counted entries. New products, edits and deletions are saved for all staff. A version check rejects stale saves when another colleague has edited the list, so changes are not silently overwritten. Refresh or return to the page to retrieve current stock.
+
+Previous browser-only inventory changes are not automatically copied into the database. Existing localStorage data is left untouched. Preserve any browser-only edits before retiring the old preview. Shelf photos and labels remain in the source files.
+
+The database is `data/stock.sqlite`, with SQLite journal files alongside it. The `data` directory is ignored by Git. For a simple backup, stop the server and back up the entire directory. Keep it private: it contains inventory, password hashes, invitations and sessions. Never delete it to reset a running shared site.
+
+## Pages and map
+
+- `index.html`: Find stock.
+- `product-inventory.html`: full editable inventory.
+- `describe-component.html`: keyword and synonym suggestions from current shared stock.
+- `shop-floor-map.html`: shelf images and numbered hoverable pins.
+- `staff.html`: administrator-only account management.
+
+`component-finder.js` contains matching rules; no AI service or subscription is needed. Suggestions do not verify electrical compatibility.
+
+`shop-map.js` holds the map positions, photo paths, optional rack assignments and pin contents. Shelf 2 is arranged as 2A/2B on top and 2C/2D below. Shelf 3 has 3A-3C above 3D-3F. Shelf 4 has 4A/4B. Sections without photos show placeholders. Map area names are not assumed to correspond to the inventory rack names until confirmed.
+
+## Hosting later
+
+This implementation is prepared for a single Node.js server with a persistent SQLite disk. It has not been deployed. GitHub Pages cannot run this server.
+
+1. Create the first administrator locally.
+2. Choose a Node.js host with HTTPS and persistent storage.
+3. Transfer the private database securely to the persistent disk; keep a backup.
+4. Configure `APP_ORIGIN` to the exact HTTPS origin (without a trailing slash), `HOST=0.0.0.0`, `PORT` as required by the host, and `DATA_DIR` to the persistent directory. `.env.example` documents these values; the server reads actual environment variables, not `.env` files automatically.
+5. Route HTTPS traffic to this server and use a single server process. Do not expose the source directory through a separate static web server.
+6. Create new invitation links using the hosted address.
+
+Authentication is enforced before serving pages, scripts and stock photos. Only the login files, shared CSS and university logo are public. Sessions use HttpOnly, SameSite cookies (Secure on HTTPS), expire after eight hours, and have CSRF protection. Passwords use salted scrypt hashes; invitation and session tokens are hashed in the database. Login and account acceptance attempts are rate-limited.
+
+If source files or photographs are in a public GitHub repository, a website login cannot make those public copies private. Use a private repository when the source inventory/photos must be staff-only. Access controls protect new server requests; they cannot revoke files someone already downloaded.
+
+## Checks
+
+```powershell
+npm test
+```
+
+`server.test.cjs` tests protected pages/photos, first-admin setup, login, invitation reuse, password resets, account disabling, session expiry, CSRF and origin rejection, rate limiting, shared inventory persistence, stale-save conflicts, validation and the four frontend pages against the actual API. Tests use a temporary database and do not alter staff accounts or live stock. `run-server-tests.cjs` provides a result-file runner for Windows runtimes without console output.
