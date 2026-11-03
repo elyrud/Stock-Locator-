@@ -20,9 +20,9 @@ mapPage.context.window = {location:{hash:'#shelf-3C'},addEventListener(){}};
 vm.runInContext(fs.readFileSync('shop-map.js','utf8'),mapPage.context);
 assert.equal(mapPage.get('shelfTitle').textContent,'Shelving area 3C');
 assert.match(mapPage.get('shelfPhoto').innerHTML,/assets\/shelf-3c.jpg/);
-for(const file of ['index.html','product-inventory.html','shop-floor-map.html']) {
+for(const file of ['index.html','product-inventory.html','shop-floor-map.html','describe-component.html']) {
   const html = fs.readFileSync(file,'utf8');
-  for(const target of ['index.html','product-inventory.html','shop-floor-map.html']) assert.ok(html.includes(`href="${target}"`));
+  for(const target of ['index.html','product-inventory.html','shop-floor-map.html','describe-component.html']) assert.ok(html.includes(`href="${target}"`));
   assert.equal((html.match(/aria-current="page"/g)||[]).length,1);
   for(const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
     if(!match[1].startsWith('https:')) assert.ok(fs.existsSync(match[1]),`${file}: missing ${match[1]}`);
@@ -125,4 +125,23 @@ for(const pins of Object.values(fresh.run('SHELF_PHOTO_PINS'))) {
   assert.equal(new Set(pins.map(pin=>pin.id)).size,pins.length);
   assert.ok(pins.every(pin=>pin.x>=0 && pin.x<=100 && pin.y>=0 && pin.y<=100));
 }
-fs.writeFileSync('verification-result.txt','PASS: all three pages and navigation; 18 map areas; image paths and pins; search, edits and persistence; malformed storage recovery; failed writes; cross-tab and cached-page refresh; tooltip formatting.');
+assert.ok(!fs.readFileSync('index.html','utf8').includes('id="componentFinder"'));
+assert.ok(fs.readFileSync('describe-component.html','utf8').includes('id="componentFinder"'));
+assert.ok(!fs.readFileSync('describe-component.html','utf8').includes('id="products"'));
+const finder = boot({},false,['search','products','listTitle','addBtn']);
+vm.runInContext(fs.readFileSync('component-finder.js','utf8'),finder.context);
+assert.match(finder.run("findComponents('I need something to measure how far away an object is', items)[0].product.name"),/Ultrasonic|Distance/);
+assert.match(finder.run("findComponents('measure temperature and humidity', items)[0].product.name"),/Temp.*Humidity/);
+assert.equal(finder.run("findComponents('build a circuit without soldering', items)[0].product.name"),'Breadboards');
+assert.equal(finder.run("findComponents('C094', items)[0].product.sku"),'C094');
+assert.equal(finder.run("findComponents('something please help', items).length"),0);
+assert.equal(finder.run("findComponents('purple elephant spaceship', items).length"),0);
+assert.equal(finder.run("findComponents('distance', []).length"),0);
+finder.get('componentDescription').value='distance';
+finder.run('renderComponentSuggestions()');
+assert.match(finder.get('componentSuggestions').innerHTML,/Possible matches/);
+assert.match(finder.get('componentSuggestions').innerHTML,/Rack 3A/);
+finder.run("items=[{id:'test',name:'<custom>',sku:'custom',area:'Room',shelf:'Bin'}]");
+finder.get('componentDescription').value='custom'; finder.run('renderComponentSuggestions()');
+assert.match(finder.get('componentSuggestions').innerHTML,/&lt;custom&gt;/);
+fs.writeFileSync('verification-result.txt','PASS: four pages, inventory, storage recovery, map and pins; description matching, distance, temperature/humidity, solderless circuits, exact IDs, unknown descriptions, empty inventory and safe rendering.');
